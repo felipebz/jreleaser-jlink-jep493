@@ -1,0 +1,35 @@
+name: Test
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: 25
+          distribution: temurin
+          cache: maven
+
+      - name: Build
+        run: ./mvnw package
+
+      - name: Show Linux binary files
+        run: |
+          ls -la target/jreleaser/assemble/jlinktest/jlink/work-linux-x86_64/jlinktest-linux-x86_64/bin
+
+      - name: Show Windows binary files
+        run: |
+          ls -la target/jreleaser/assemble/jlinktest/jlink/work-windows-x86_64/jlinktest-windows-x86_64/bin
+
+
