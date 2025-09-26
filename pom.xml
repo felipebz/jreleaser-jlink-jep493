@@ -61,6 +61,13 @@
                             <goal>setup-disco</goal>
                         </goals>
                     </execution>
+                    <execution>
+                        <id>setup-jmods</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>setup-jdks</goal>
+                        </goals>
+                    </execution>
                 </executions>
                 <configuration>
                     <pkgs>
@@ -71,14 +78,43 @@
                             <distribution>temurin</distribution>
                             <archiveType>tar.gz</archiveType>
                         </pkg>
-                        <pkg>
+                    </pkgs>
+                    <jdks>
+                        <jdk>
                             <name>windows</name>
                             <platform>windows-x86_64</platform>
-                            <version>${jdk.version}</version>
-                            <distribution>temurin</distribution>
-                        </pkg>
-                    </pkgs>
+                            <url>
+                                https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25%2B36/OpenJDK25U-jmods_x64_windows_hotspot_25_36.zip
+                            </url>
+                            <checksum>071c70d11eec7998fbe9719c0570d54756c6ec4bb4271fd2ee004248771fac60</checksum>
+                        </jdk>
+                    </jdks>
                 </configuration>
+            </plugin>
+
+            <!-- Rename jmods folder and create a 'release' file for Windows JDK -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>prepare-jmods</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target name="prepare-jmods">
+                                <move
+                                        file="${project.build.directory}/jdks/windows/jdk-25+36-jmods"
+                                        tofile="${project.build.directory}/jdks/windows/jmods"
+                                        failonerror="false"/>
+                                <echo file="${project.build.directory}/jdks/windows/release">JAVA_VERSION="25"</echo>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
 
             <plugin>
@@ -107,7 +143,7 @@
                                             <platform>linux-x86_64</platform>
                                         </targetJdk>
                                         <targetJdk>
-                                            <path>target/jdks/windows/jdk-25+36</path>
+                                            <path>target/jdks/windows</path>
                                             <platform>windows-x86_64</platform>
                                         </targetJdk>
                                     </targetJdks>

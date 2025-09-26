@@ -1,57 +1,30 @@
 # JEP 493 Jlink Cross-Platform Reproducer
 
-This project demonstrates a subtle issue when using Jlink with JDK 24+ distributions that implement [JEP 493: Linking Run-Time Images without JMODs](https://openjdk.org/jeps/493) with JReleaser 1.20.0.
+See the [main README](https://github.com/felipebz/jreleaser-jlink-jep493/blob/main/README.md) for more details.
 
-## Background
+## Workaround implemented in this branch
 
-* Starting with [Eclipse Temurin 24](https://adoptium.net/pt-BR/news/2025/08/eclipse-temurin-jdk24-JEP493-enabled), JEP 493 is enabled.
-* The `jmods/` directory is no longer shipped with the JDK.
-* `jlink` is able to create **same-platform** custom runtimes directly from the runtime image.
-* **Cross-platform linking requires external JMODs** (downloaded separately).
+To force cross-platform `jlink` to use the correct Windows JMODs with JDKs that ship without a `jmods/` directory (JEP
+493), this project applies the following workaround in pom.xml:
 
-### The Problem
+1) Download Linux JDK and Windows JMODs with JReleaser jdks-maven-plugin
 
-* When `<targetJdk>/jmods` does not exist, `jlink` does **not** fail.
-* Instead, it silently falls back to the **host** JDK's runtime image.
-* This makes a "cross-platform" runtime appear to succeed, but the output is actually for the host platform.
+    - setup-disco downloads the Linux Temurin JDK archive (contains the Linux runtime used to link the Linux image).
+    - setup-jdks downloads the Windows Temurin JMODs zip
 
-This project reproduces that situation.
+2) Create a minimal "fake" JAVA_HOME with the Windows JMODs
 
-## How It Works
+    - Rename folder `target/jdks/windows/jdk-25+36-jmods` to `target/jdks/windows/jmods`.
+    - Create `target/jdks/windows/release` containing `JAVA_VERSION="25"`. JReleaser checks for a release file at the
+      JDK root; since we only have JMODs, we generate a minimal one so the directory is accepted as a targetJdk.
 
-* A small Maven project configured with JReleaser's `jlink` assembler.
-* The GitHub Actions workflow builds on Ubuntu with Temurin JDK 25.
-* JReleaser is instructed to produce both **Linux x64** and **Windows x64** runtimes.
+3) Point JReleaser jlink assembler to these paths
 
-### Expected
+    - Linux: target/jdks/linux/jdk-25+36
+    - Windows: target/jdks/windows
 
-* The Windows image should contain `.exe` binaries.
-* The Linux image should contain ELF binaries.
+## Why this works
 
-### Actual
-
-* Both images contain **Linux binaries only**.
-* The Windows runtime directory is created, but its `bin/` folder has the same Linux executables as the Linux build.
-
-## Reproducing Locally
-
-1. Install JDK 24 or newer (Temurin recommended).
-
-2. Run:
-
-   ```bash
-   ./mvnw clean package
-   ```
-
-3. Inspect the generated runtimes:
-
-   ```bash
-   ls -la target/jreleaser/assemble/jlinktest/jlink/work-linux-x86_64/jlinktest-linux-x86_64/bin
-   ls -la target/jreleaser/assemble/jlinktest/jlink/work-windows-x86_64/jlinktest-windows-x86_64/bin
-   ```
-
-   Both directories will show the same binaries, confirming the issue.
-
-## GitHub Actions
-
-The included [workflow](.github/workflows/build.yml) shows the `bin/` contents of both Linux and Windows runtime images.
+jlink only needs the target platform JMODs for cross-linking. It does not require the full target runtime image. By
+feeding the Windows JMODs and a minimal release marker, JReleaser recognizes the directory as a valid target JDK and
+passes its jmods to jlink, producing proper Windows images on Linux.
